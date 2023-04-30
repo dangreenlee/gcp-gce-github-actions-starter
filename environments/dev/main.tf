@@ -1,8 +1,8 @@
 resource "google_compute_instance" "example" {
-  name         = "example-instance"
-  project      = var.gcp.project
-  zone         = "${var.gcp.region}-a"
-  machine_type = "f1-micro"
+  name                      = "example-instance"
+  project                   = var.gcp.project
+  zone                      = "${var.gcp.region}-a"
+  machine_type              = "f1-micro"
   allow_stopping_for_update = true
 
   boot_disk {
