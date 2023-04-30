@@ -3,6 +3,7 @@ resource "google_compute_instance" "example" {
   project      = var.gcp.project
   zone         = "${var.gcp.region}-a"
   machine_type = "f1-micro"
+  allow_stopping_for_update = true
 
   boot_disk {
     initialize_params {
