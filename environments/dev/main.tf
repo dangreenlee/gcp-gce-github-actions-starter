@@ -2,7 +2,7 @@ resource "google_compute_instance" "example" {
   name         = "example-instance"
   project      = var.gcp.project
   zone         = "${var.gcp.region}-a"
-  machine_type = "n1-standard-1"
+  machine_type = "f1-micro"
 
   boot_disk {
     initialize_params {
