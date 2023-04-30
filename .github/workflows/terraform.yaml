@@ -1,0 +1,104 @@
+name: "Dev-Terraform"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'environments/dev/**'
+  pull_request:
+    paths:
+      - 'environments/dev/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  terraform:
+    name: "Terraform Dev"
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      TF_ENVIRONMENT: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.4.2
+
+      - name: Terraform Format
+        id: fmt
+        run: |
+          cd environments/${{ env.TF_ENVIRONMENT }}
+          terraform fmt -check
+
+      - name: Terraform Init
+        id: init
+        env:
+          TF_VAR_GCP_CREDENTIALS: ${{ secrets.TF_VAR_GCP_CREDENTIALS }}
+        run: |
+          cd environments/${{ env.TF_ENVIRONMENT }}
+          terraform init
+      
+      - name: Terraform Validate
+        id: validate
+        run: |
+          cd environments/${{ env.TF_ENVIRONMENT }}
+          terraform validate -no-color
+
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        env:
+          TF_VAR_GCP_CREDENTIALS: ${{ secrets.TF_VAR_GCP_CREDENTIALS }}
+        run: |
+          cd environments/${{ env.TF_ENVIRONMENT }}
+          terraform plan -no-color -input=false
+        continue-on-error: true
+
+      - name: Update Pull Request
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        env:
+          PLAN: ${{ steps.plan.outputs.stdout }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
+            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
+            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform\n
+            ${process.env.PLAN}
+            \`\`\`
+
+            </details>
+
+            *Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+      - name: Terraform Apply
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'workflow_dispatch'
+        env:
+          TF_VAR_GCP_CREDENTIALS: ${{ secrets.TF_VAR_GCP_CREDENTIALS }}
+        run: |
+          cd environments/${{ env.TF_ENVIRONMENT }}
+          terraform apply -auto-approve -input=false
