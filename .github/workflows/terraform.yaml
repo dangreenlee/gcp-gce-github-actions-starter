@@ -37,6 +37,12 @@ jobs:
           cd environments/${{ env.TF_ENVIRONMENT }}
           terraform fmt -check
 
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.TF_VAR_GCP_CREDENTIALS }}
+
       - name: Terraform Init
         id: init
         env:
